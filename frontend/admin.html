@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Health Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🔧 Admin Dashboard</h1>
+                <p>Manage disease information</p>
+            </div>
+            <a href="index.html" class="admin-link">← Back to Chatbot</a>
+        </header>
+
+        <!-- Admin Controls -->
+        <div class="admin-container">
+            <!-- Add/Edit Form -->
+            <div class="admin-form-section">
+                <h2 id="formTitle">Add New Disease</h2>
+                <form id="diseaseForm">
+                    <input type="hidden" id="diseaseId">
+                    
+                    <div class="form-group">
+                        <label>Disease Name *</label>
+                        <input type="text" id="diseaseName" required placeholder="e.g., Tuberculosis">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Symptoms *</label>
+                        <textarea id="diseaseSymptoms" required placeholder="List all common symptoms"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Causes *</label>
+                        <textarea id="diseaseCauses" required placeholder="What causes this disease?"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Prevention Tips *</label>
+                        <textarea id="diseasePrevention" required placeholder="How to prevent this disease?"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>When to See Doctor *</label>
+                        <textarea id="diseaseDoctor" required placeholder="When should someone seek medical help?"></textarea>
+                    </div>
+
+                    <div class="form-buttons">
+                        <button type="submit" class="btn-primary">Save Disease</button>
+                        <button type="button" onclick="resetForm()" class="btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Disease List -->
+            <div class="admin-list-section">
+                <h2>Existing Diseases</h2>
+                <div id="diseasesList" class="diseases-list">
+                    <p class="loading">Loading diseases...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        let editingId = null;
+
+        // Load diseases on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDiseases();
+            
+            // Form submit handler
+            document.getElementById('diseaseForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await saveDisease();
+            });
+        });
+
+        // Load all diseases
+        async function loadDiseases() {
+            try {
+                const response = await fetch(`${API_URL}/diseases`);
+                const data = await response.json();
+                displayDiseases(data.diseases);
+            } catch (error) {
+                document.getElementById('diseasesList').innerHTML = 
+                    '<p class="error">Failed to load diseases. Make sure backend is running.</p>';
+            }
+        }
+
+        // Display diseases in list
+        function displayDiseases(diseases) {
+            const listDiv = document.getElementById('diseasesList');
+            
+            if (diseases.length === 0) {
+                listDiv.innerHTML = '<p>No diseases found. Add one above!</p>';
+                return;
+            }
+
+            listDiv.innerHTML = diseases.map(disease => `
+                <div class="disease-card">
+                    <h3>${disease.name}</h3>
+                    <p><strong>Symptoms:</strong> ${disease.symptoms.substring(0, 100)}...</p>
+                    <div class="card-actions">
+                        <button onclick="editDisease(${disease.id})" class="btn-edit">Edit</button>
+                        <button onclick="deleteDisease(${disease.id}, '${disease.name}')" class="btn-delete">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Save (add or update) disease
+        async function saveDisease() {
+            const disease = {
+                name: document.getElementById('diseaseName').value,
+                symptoms: document.getElementById('diseaseSymptoms').value,
+                causes: document.getElementById('diseaseCauses').value,
+                prevention: document.getElementById('diseasePrevention').value,
+                when_to_see_doctor: document.getElementById('diseaseDoctor').value
+            };
+
+            try {
+                const url = editingId ? `${API_URL}/diseases/${editingId}` : `${API_URL}/diseases`;
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(disease)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(editingId ? 'Disease updated successfully!' : 'Disease added successfully!');
+                    resetForm();
+                    loadDiseases();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to save disease. Check if backend is running.');
+            }
+        }
+
+        // Edit disease
+        async function editDisease(id) {
+            try {
+                const response = await fetch(`${API_URL}/diseases/${id}`);
+                const data = await response.json();
+                const disease = data.disease;
+
+                editingId = id;
+                document.getElementById('formTitle').textContent = 'Edit Disease';
+                document.getElementById('diseaseName').value = disease.name;
+                document.getElementById('diseaseSymptoms').value = disease.symptoms;
+                document.getElementById('diseaseCauses').value = disease.causes;
+                document.getElementById('diseasePrevention').value = disease.prevention;
+                document.getElementById('diseaseDoctor').value = disease.when_to_see_doctor;
+
+                // Scroll to form
+                document.querySelector('.admin-form-section').scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                alert('Failed to load disease details.');
+            }
+        }
+
+        // Delete disease
+        async function deleteDisease(id, name) {
+            if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+            try {
+                const response = await fetch(`${API_URL}/diseases/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Disease deleted successfully!');
+                    loadDiseases();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to delete disease. Check if backend is running.');
+            }
+        }
+
+        // Reset form
+        function resetForm() {
+            editingId = null;
+            document.getElementById('formTitle').textContent = 'Add New Disease';
+            document.getElementById('diseaseForm').reset();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Chatbot - Disease Awareness</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🏥 Health Chatbot</h1>
+                <p>Ask me about diseases, symptoms, and prevention</p>
+            </div>
+            <a href="admin.html" class="admin-link">Admin Panel →</a>
+        </header>
+
+        <!-- Chatbot Container -->
+        <div class="chatbot-container">
+            <!-- Chat Messages Area -->
+            <div class="chat-messages" id="chatMessages">
+                <div class="bot-message">
+                    <div class="message-content">
+                        <strong>Hi! I'm your Health Assistant 👋</strong><br><br>
+                        Ask me about diseases like:<br>
+                        • Diabetes<br>
+                        • Dengue<br>
+                        • Malaria<br>
+                        • Common Cold<br>
+                        • Hypertension<br><br>
+                        You can ask about symptoms, causes, prevention, or when to see a doctor!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-container">
+                <input 
+                    type="text" 
+                    id="userInput" 
+                    placeholder="Type your question... (e.g., 'What are diabetes symptoms?')"
+                    onkeypress="if(event.key === 'Enter') sendMessage()"
+                >
+                <button onclick="sendMessage()" id="sendBtn">Send</button>
+            </div>
+
+            <!-- Quick Suggestions -->
+            <div class="suggestions">
+                <button onclick="quickQuestion('What are symptoms of diabetes?')">Diabetes symptoms?</button>
+                <button onclick="quickQuestion('How to prevent dengue?')">Prevent dengue?</button>
+                <button onclick="quickQuestion('Tell me about malaria')">About malaria</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+
+        // Send message function
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Display user message
+            displayMessage(message, 'user');
+            input.value = '';
+
+            // Show typing indicator
+            const typingId = showTyping();
+
+            // Send to backend
+            try {
+                const response = await fetch(`${API_URL}/chatbot`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                
+                // Remove typing indicator
+                removeTyping(typingId);
+
+                // Display bot response
+                displayMessage(data.reply, 'bot');
+            } catch (error) {
+                removeTyping(typingId);
+                displayMessage('Sorry, I couldn\'t connect to the server. Please make sure the backend is running.', 'bot');
+            }
+        }
+
+        // Display message in chat
+        function displayMessage(text, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = sender === 'user' ? 'user-message' : 'bot-message';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Convert markdown-style bold to HTML
+            const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            contentDiv.innerHTML = formattedText.replace(/\n/g, '<br>');
+            
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTyping() {
+            const chatMessages = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'bot-message typing-indicator';
+            typingDiv.id = 'typing-' + Date.now();
+            typingDiv.innerHTML = '<div class="message-content">Typing<span class="dots"></span></div>';
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return typingDiv.id;
+        }
+
+        // Remove typing indicator
+        function removeTyping(id) {
+            const typing = document.getElementById(id);
+            if (typing) typing.remove();
+        }
+
+        // Quick question buttons
+        function quickQuestion(question) {
+            document.getElementById('userInput').value = question;
+            sendMessage();
+        }
+    </script>
+</body>
+</html>
